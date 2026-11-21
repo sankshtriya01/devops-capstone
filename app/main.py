@@ -20,6 +20,7 @@ START_TIME = time.time()
 
 app = Flask(__name__)
 
+
 # ---------- structured JSON logging ----------
 class JsonFormatter(logging.Formatter):
     def format(self, record):

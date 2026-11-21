@@ -1,0 +1,117 @@
+name: CI-CD
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  # 1. Check code quality and run tests
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: pip
+      - run: pip install -r app/requirements-dev.txt
+      - name: Lint
+        run: flake8 app --max-line-length=100
+      - name: Unit tests
+        run: pytest app -q
+      - name: Static security scan (code)
+        run: bandit -r app/main.py -q
+
+  # 2. Scan the repo and config files for security problems
+  security-scan:
+    runs-on: ubuntu-latest
+    needs: test
+    steps:
+      - uses: actions/checkout@v4
+      - name: Scan for secrets
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Scan Kubernetes + Terraform files
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          scan-type: config
+          scan-ref: .
+          severity: HIGH,CRITICAL
+          exit-code: "0"
+
+  # 3. Build the container image, scan it, push it
+  build-and-push:
+    runs-on: ubuntu-latest
+    needs: [test, security-scan]
+    if: github.event_name == 'push'
+    permissions:
+      contents: read
+      packages: write
+    outputs:
+      image: ${{ steps.meta.outputs.image }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - id: meta
+        run: |
+          IMAGE=${REGISTRY}/${IMAGE_NAME,,}
+          echo "image=${IMAGE}:${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: false
+          load: true
+          tags: ${{ steps.meta.outputs.image }}
+          build-args: APP_VERSION=${{ github.sha }}
+      - name: Scan image for vulnerabilities
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          image-ref: ${{ steps.meta.outputs.image }}
+          severity: CRITICAL
+          exit-code: "1"
+          ignore-unfixed: true
+      - name: Push image
+        run: docker push ${{ steps.meta.outputs.image }}
+
+  # 4. Deploy a small "canary" first, then the full rollout
+  deploy:
+    runs-on: ubuntu-latest
+    needs: build-and-push
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    environment: production        # add a manual approval rule in GitHub settings
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up kubeconfig
+        run: |
+          mkdir -p $HOME/.kube
+          echo "${{ secrets.KUBE_CONFIG }}" | base64 -d > $HOME/.kube/config
+      - name: Deploy canary (10% of traffic)
+        run: |
+          kubectl apply -f k8s/namespace.yaml
+          kubectl apply -f k8s/
+          kubectl -n tasktracker set image deployment/tasktracker-canary \
+            app=${{ needs.build-and-push.outputs.image }}
+          kubectl -n tasktracker rollout status deployment/tasktracker-canary --timeout=120s
+      - name: Check canary health
+        run: bash scripts/canary-check.sh
+      - name: Promote to everyone
+        run: |
+          kubectl -n tasktracker set image deployment/tasktracker \
+            app=${{ needs.build-and-push.outputs.image }}
+          kubectl -n tasktracker rollout status deployment/tasktracker --timeout=180s
+      - name: Roll back if anything failed
+        if: failure()
+        run: |
+          kubectl -n tasktracker rollout undo deployment/tasktracker || true
+          kubectl -n tasktracker scale deployment/tasktracker-canary --replicas=0 || true

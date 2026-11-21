@@ -143,3 +143,4 @@ ansible-playbook playbooks/01-docker.yml  # or one at a time
 
 `sample-data/app-sample.log` holds real JSON log lines (including a failed and a successful login) and
 `sample-data/metrics-sample.txt` holds real metrics captured from the running application.
+nBuilt for the ENSP461 DevOps and Automation Lab.

@@ -26,7 +26,7 @@ jobs:
       - name: Unit tests
         run: pytest app -q
       - name: Static security scan (code)
-        run: bandit -r app/main.py -q
+        run: bandit -r app -x app/tests -q
 
   # 2. Scan the repo and config files for security problems
   security-scan:
@@ -67,12 +67,15 @@ jobs:
         run: |
           IMAGE=${REGISTRY}/${IMAGE_NAME,,}
           echo "image=${IMAGE}:${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
+          echo "latest=${IMAGE}:latest" >> "$GITHUB_OUTPUT"
       - uses: docker/build-push-action@v6
         with:
           context: .
           push: false
           load: true
-          tags: ${{ steps.meta.outputs.image }}
+          tags: |
+            ${{ steps.meta.outputs.image }}
+            ${{ steps.meta.outputs.latest }}
           build-args: APP_VERSION=${{ github.sha }}
       - name: Scan image for vulnerabilities
         uses: aquasecurity/trivy-action@0.35.0
@@ -82,7 +85,9 @@ jobs:
           exit-code: "1"
           ignore-unfixed: true
       - name: Push image
-        run: docker push ${{ steps.meta.outputs.image }}
+        run: |
+          docker push ${{ steps.meta.outputs.image }}
+          docker push ${{ steps.meta.outputs.latest }}
 
   # 4. Deploy a small "canary" first, then the full rollout
   deploy:
@@ -99,7 +104,7 @@ jobs:
       - name: Deploy canary (10% of traffic)
         run: |
           kubectl apply -f k8s/namespace.yaml
-          kubectl apply -f k8s/
+          kubectl apply -f k8s/app/
           kubectl -n tasktracker set image deployment/tasktracker-canary \
             app=${{ needs.build-and-push.outputs.image }}
           kubectl -n tasktracker rollout status deployment/tasktracker-canary --timeout=120s

@@ -1,0 +1,32 @@
+groups:
+  - name: tasktracker-alerts
+    rules:
+      - alert: AppDown
+        expr: up{job="tasktracker"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "TaskTracker is down"
+          description: "Prometheus cannot reach the app for over 1 minute."
+
+      - alert: HighErrorRate
+        expr: |
+          sum(rate(http_requests_total{status=~"5.."}[2m]))
+            / sum(rate(http_requests_total[2m])) > 0.05
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "More than 5% of requests are failing"
+          description: "Check the latest deployment. Consider rolling back (scripts/rollback.sh)."
+
+      - alert: SlowResponses
+        expr: |
+          sum(rate(http_request_duration_seconds_sum[5m]))
+            / sum(rate(http_request_duration_seconds_count[5m])) > 0.5
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Average response time is above 0.5 seconds"

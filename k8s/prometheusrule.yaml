@@ -1,0 +1,45 @@
+# Same alerts as monitoring/alert-rules.yml, in the form the Kubernetes
+# Prometheus operator expects. Apply AFTER Terraform installs the monitoring stack.
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: tasktracker
+  namespace: tasktracker
+  labels:
+    release: kube-prometheus-stack
+spec:
+  selector:
+    matchLabels:
+      app: tasktracker
+  endpoints:
+    - port: http
+      path: /metrics
+      interval: 15s
+---
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: tasktracker-alerts
+  namespace: tasktracker
+  labels:
+    release: kube-prometheus-stack
+spec:
+  groups:
+    - name: tasktracker-alerts
+      rules:
+        - alert: HighErrorRate
+          expr: |
+            sum(rate(http_requests_total{status=~"5.."}[2m]))
+              / sum(rate(http_requests_total[2m])) > 0.05
+          for: 2m
+          labels:
+            severity: critical
+          annotations:
+            summary: "More than 5% of requests are failing"
+        - alert: PodRestartingOften
+          expr: increase(kube_pod_container_status_restarts_total{namespace="tasktracker"}[10m]) > 3
+          for: 1m
+          labels:
+            severity: warning
+          annotations:
+            summary: "A TaskTracker pod keeps restarting"

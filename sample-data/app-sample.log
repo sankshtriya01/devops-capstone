@@ -1,0 +1,8 @@
+{"ts": "2026-11-21T07:44:11", "level": "INFO", "msg": "request", "version": "1.0.0", "request_id": "bc035837-74bc-4d5a-a53a-5d2afe2d5559", "method": "GET", "path": "/health", "status": 200, "duration_ms": 0.19}
+{"ts": "2026-11-21T07:44:11", "level": "INFO", "msg": "request", "version": "1.0.0", "request_id": "3ee0e7e7-b9a8-415a-940b-e9fe39c3cb39", "method": "POST", "path": "/tasks", "status": 201, "duration_ms": 0.28}
+{"ts": "2026-11-21T07:44:11", "level": "INFO", "msg": "request", "version": "1.0.0", "request_id": "d841f98d-0010-4442-b754-09dbbef024b8", "method": "POST", "path": "/tasks", "status": 201, "duration_ms": 0.19}
+{"ts": "2026-11-21T07:44:11", "level": "INFO", "msg": "request", "version": "1.0.0", "request_id": "c123f5d0-1207-4820-b055-347d42fe61b9", "method": "POST", "path": "/tasks", "status": 201, "duration_ms": 0.14}
+{"ts": "2026-11-21T07:44:11", "level": "INFO", "msg": "request", "version": "1.0.0", "request_id": "9145c1c8-f8dd-49ea-87bc-5ec0502f6414", "method": "GET", "path": "/tasks", "status": 200, "duration_ms": 0.13}
+{"ts": "2026-11-21T07:44:11", "level": "INFO", "msg": "request", "version": "1.0.0", "request_id": "b655cc0e-9a28-4def-acb0-eadd72640fc4", "method": "POST", "path": "/tasks", "status": 400, "duration_ms": 0.23}
+{"ts": "2026-11-21T07:44:11", "level": "INFO", "msg": "request", "version": "1.0.0", "request_id": "eb7d9268-bfef-4465-a64b-4e453afa7817", "method": "GET", "path": "/tasks/does-not-exist", "status": 404, "duration_ms": 0.11}
+{"ts": "2026-11-21T07:44:11", "level": "INFO", "msg": "request", "version": "1.0.0", "request_id": "18194db6-1269-488c-a0d8-31c36d5600a5", "method": "GET", "path": "/crash", "status": 500, "duration_ms": 0.14}

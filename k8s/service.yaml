@@ -1,0 +1,24 @@
+# One Service in front of BOTH stable and canary pods (selects only app=tasktracker).
+apiVersion: v1
+kind: Service
+metadata:
+  name: tasktracker
+  namespace: tasktracker
+  labels:
+    app: tasktracker
+spec:
+  selector:
+    app: tasktracker
+  ports:
+    - name: http
+      port: 80
+      targetPort: 8080
+  type: ClusterIP
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: tasktracker-config
+  namespace: tasktracker
+data:
+  PORT: "8080"

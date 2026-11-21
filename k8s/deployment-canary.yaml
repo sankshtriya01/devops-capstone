@@ -1,0 +1,72 @@
+# CANARY version: the new release goes here first and gets about 10% of traffic
+# (1 canary pod out of 10 total pods behind the same Service).
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: tasktracker-canary
+  namespace: tasktracker
+  labels:
+    app: tasktracker
+    track: canary
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: tasktracker
+      track: canary
+  template:
+    metadata:
+      labels:
+        app: tasktracker
+        track: canary
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8080"
+        prometheus.io/path: /metrics
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: app
+          image: ghcr.io/YOUR_GITHUB_USERNAME/devops-capstone:latest
+          ports:
+            - containerPort: 8080
+          env:
+            - name: PORT
+              valueFrom:
+                configMapKeyRef:
+                  name: tasktracker-config
+                  key: PORT
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 250m
+              memory: 128Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 3
+            periodSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 10
+            periodSeconds: 10
+      volumes:
+        - name: tmp
+          emptyDir: {}

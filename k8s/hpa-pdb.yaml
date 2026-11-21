@@ -1,0 +1,33 @@
+# Auto-scaling: add pods when busy, remove when quiet.
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: tasktracker
+  namespace: tasktracker
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: tasktracker
+  minReplicas: 9    # keeps the 9:1 stable-to-canary ratio (about 10% canary traffic)
+  maxReplicas: 18
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 70
+---
+# Keeps at least 2 pods alive during maintenance (self-healing / recoverability).
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: tasktracker
+  namespace: tasktracker
+spec:
+  minAvailable: 2
+  selector:
+    matchLabels:
+      app: tasktracker
+      track: stable

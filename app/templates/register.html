@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% block title %}Register - TaskTracker{% endblock %}
+{% block content %}
+<div class="card">
+  <h1>Create an account</h1>
+  {% if error %}<div class="msg err">{{ error }}</div>{% endif %}
+  <form method="post" action="{{ url_for('register_page') }}">
+    <input type="hidden" name="csrf" value="{{ csrf_token() }}">
+    <label for="username">Username</label>
+    <input type="text" id="username" name="username" autocomplete="username" required>
+    <p class="muted">3-30 letters, numbers or underscores.</p>
+    <label for="password">Password</label>
+    <input type="password" id="password" name="password" autocomplete="new-password" required>
+    <p class="muted">At least 8 characters.</p>
+    <p><button type="submit">Register</button></p>
+  </form>
+  <p class="muted">Already registered? <a href="{{ url_for('login_page') }}">Log in</a></p>
+</div>
+{% endblock %}

@@ -1,0 +1,34 @@
+# Jenkins (CI server) and SonarQube (code quality) for the lab.
+# Start:  cd jenkins && docker compose up -d --build
+# Jenkins:   http://localhost:8081      SonarQube: http://localhost:9000 (admin / admin first time)
+services:
+  jenkins:
+    build: .
+    container_name: jenkins
+    user: root
+    ports:
+      - "8081:8080"
+      - "50000:50000"
+    volumes:
+      - jenkins_home:/var/jenkins_home
+      - /var/run/docker.sock:/var/run/docker.sock
+    restart: unless-stopped
+
+  sonarqube:
+    image: sonarqube:10.7.0-community
+    container_name: sonarqube
+    ports:
+      - "9000:9000"
+    environment:
+      SONAR_ES_BOOTSTRAP_CHECKS_DISABLE: "true"   # lets it start on Docker Desktop
+    volumes:
+      - sonar_data:/opt/sonarqube/data
+      - sonar_extensions:/opt/sonarqube/extensions
+      - sonar_logs:/opt/sonarqube/logs
+    restart: unless-stopped
+
+volumes:
+  jenkins_home:
+  sonar_data:
+  sonar_extensions:
+  sonar_logs:

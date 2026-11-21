@@ -1,0 +1,79 @@
+# Role-Based Access Control: who may do what inside the tasktracker namespace.
+#   tasktracker-sa : identity of the app pods (no API access at all)
+#   viewer         : read-only (look at pods and logs, cannot change or read secrets)
+#   ci-deployer    : may update deployments (used by Jenkins), cannot read secrets
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: tasktracker-sa
+  namespace: tasktracker
+automountServiceAccountToken: false
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: viewer
+  namespace: tasktracker
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: ci-deployer
+  namespace: tasktracker
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: app-viewer
+  namespace: tasktracker
+rules:
+  - apiGroups: [""]
+    resources: ["pods", "pods/log", "services", "configmaps", "persistentvolumeclaims"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["apps"]
+    resources: ["deployments", "replicasets"]
+    verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: viewer-binding
+  namespace: tasktracker
+subjects:
+  - kind: ServiceAccount
+    name: viewer
+    namespace: tasktracker
+roleRef:
+  kind: Role
+  name: app-viewer
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: app-deployer
+  namespace: tasktracker
+rules:
+  - apiGroups: ["apps"]
+    resources: ["deployments"]
+    verbs: ["get", "list", "watch", "patch", "update"]
+  - apiGroups: ["apps"]
+    resources: ["replicasets"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: [""]
+    resources: ["pods", "pods/log"]
+    verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: ci-deployer-binding
+  namespace: tasktracker
+subjects:
+  - kind: ServiceAccount
+    name: ci-deployer
+    namespace: tasktracker
+roleRef:
+  kind: Role
+  name: app-deployer
+  apiGroup: rbac.authorization.k8s.io

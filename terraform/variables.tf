@@ -7,7 +7,25 @@ variable "kubeconfig_path" {
 variable "kube_context" {
   description = "Which cluster to use (see: kubectl config get-contexts)"
   type        = string
-  default     = "minikube"
+  default     = "docker-desktop"
+}
+
+variable "app_namespace" {
+  description = "Namespace for the application"
+  type        = string
+  default     = "tasktracker"
+}
+
+variable "monitoring_namespace" {
+  description = "Namespace for Prometheus, Grafana and Loki"
+  type        = string
+  default     = "monitoring"
+}
+
+variable "enable_gitops" {
+  description = "Install Argo CD (GitOps). Set to false on a low-memory laptop."
+  type        = bool
+  default     = true
 }
 
 variable "grafana_admin_password" {

@@ -1,0 +1,43 @@
+# Security: block all incoming traffic by default, then allow only what is needed.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny-ingress
+  namespace: tasktracker
+spec:
+  podSelector: {}
+  policyTypes: [Ingress]
+---
+# The web app accepts traffic on its port (from users and from Prometheus).
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-app-traffic
+  namespace: tasktracker
+spec:
+  podSelector:
+    matchLabels:
+      app: tasktracker
+  policyTypes: [Ingress]
+  ingress:
+    - ports:
+        - port: 8080
+---
+# The database accepts traffic ONLY from the app pods.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-db-from-app
+  namespace: tasktracker
+spec:
+  podSelector:
+    matchLabels:
+      app: postgres
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app: tasktracker
+      ports:
+        - port: 5432

@@ -1,0 +1,36 @@
+# Installs and starts Docker.
+- name: Install Docker
+  hosts: devops_servers
+  become: true
+  tasks:
+    - name: Install Docker and helper packages
+      ansible.builtin.apt:
+        name:
+          - docker.io
+          - docker-compose-v2
+          - curl
+          - git
+          - ca-certificates
+        state: present
+        update_cache: true
+
+    - name: Make sure Docker starts at boot and is running
+      ansible.builtin.service:
+        name: docker
+        state: started
+        enabled: true
+
+    - name: Let the login user run Docker without sudo
+      ansible.builtin.user:
+        name: "{{ ansible_user | default(ansible_env.USER) }}"
+        groups: docker
+        append: true
+
+    - name: Check Docker works
+      ansible.builtin.command: docker --version
+      register: docker_version
+      changed_when: false
+
+    - name: Show the Docker version
+      ansible.builtin.debug:
+        msg: "{{ docker_version.stdout }}"

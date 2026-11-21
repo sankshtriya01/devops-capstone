@@ -1,130 +1,55 @@
-# DevOps Capstone: TaskTracker Delivery Platform
+# DevOps Capstone: End-to-End DevOps Pipeline for a Cloud-Native Application
 
-An end-to-end DevOps platform that takes code from a Git commit to a safe production
-deployment automatically, with monitoring, logging, security checks and rollback built in.
+Course: DevOps & Automation Lab (ENSP461), B.Tech CSE Semester VII.
 
-The sample application is **TaskTracker**, a small REST API (Python/Flask) for managing tasks.
-The application is deliberately simple. The point of this project is the platform around it.
+Application: **TaskTracker**, a task manager with user login, a PostgreSQL database, a responsive
+web interface and a REST API (Python/Flask). The application is deliberately simple; the project
+is about the delivery platform around it.
 
-## What the platform does
+## Phase map (assignment phase -> where it is in this repo)
 
-| Area | Tool | Where |
+| Phase | Requirement | Where |
 |---|---|---|
-| Version control | Git + GitHub (feature branches, pull requests) | this repo |
-| CI/CD pipeline | GitHub Actions | `.github/workflows/ci-cd.yml` |
-| Containerization | Docker (multi-stage, non-root) | `Dockerfile`, `docker-compose.yml` |
-| Orchestration | Kubernetes (self-healing, auto-scaling) | `k8s/` |
-| Infrastructure automation | Terraform + Ansible | `terraform/`, `ansible/` |
-| Monitoring and alerts | Prometheus + Grafana | `monitoring/`, `k8s/prometheusrule.yaml` |
-| Logging | JSON logs + Loki + Promtail | `app/main.py`, `monitoring/promtail.yml` |
-| Security | Secret scan, code scan, image scan, non-root pods, network policy | pipeline + `k8s/` |
-| Advanced deployment | Canary release with automatic rollback | `k8s/deployment-canary.yaml`, `scripts/` |
-| Recoverability | Rollout history, rollback script, pod disruption budget | `scripts/rollback.sh`, `k8s/hpa-pdb.yaml` |
+| App | Login, CRUD, database, responsive UI, REST API, error handling | `app/` |
+| 1 | Version control (GitHub, branches, merges, conflicts) | this repo, `docs/GIT-WORKFLOW.md` |
+| 2 | CI with Jenkins (build, test, package after every push) | `Jenkinsfile`, `jenkins/` |
+| 3 | Docker (Dockerfile, image, Compose) | `Dockerfile`, `docker-compose.yml` |
+| 4 | Kubernetes (Deployment, Service, ConfigMap, Secret, Persistent Volume, scaling, rolling update, rollback) | `k8s/app/` |
+| 5 | Ansible (Docker, Kubernetes, app deployment, configuration) | `ansible/` |
+| 6 | Terraform (variables, outputs, modules) | `terraform/` |
+| 7 | Monitoring (Prometheus, Grafana) | `monitoring/`, `k8s/app/prometheusrule.yaml`, `terraform/modules/monitoring` |
+| 8 | Logging (Fluentd + Elasticsearch + Kibana) | `k8s/logging/` |
+| 9 | Security (SonarQube, secrets, image scanning, RBAC, Jenkins credentials) | `sonar-project.properties`, `k8s/app/secret.yaml`, `k8s/app/rbac.yaml`, `Jenkinsfile` |
+| 10 | Deployment strategy (canary) | `k8s/app/deployment-canary.yaml`, `scripts/canary-check.sh` |
+| 11 | GitOps (Argo CD) | `argocd/application.yaml`, `terraform/modules/gitops` |
+| Bonus | Auto scaling, CI security scanning, unit test coverage | `k8s/app/hpa-pdb.yaml`, `.github/workflows/ci-cd.yml`, `Jenkinsfile` |
 
-## How the flow works
+`.github/workflows/ci-cd.yml` is a second pipeline on GitHub Actions. Jenkins is the pipeline the
+assignment asks for; GitHub Actions builds and publishes the container image that Kubernetes pulls.
 
-```
- Developer commits code
-          |
-          v
-   GitHub (pull request)
-          |
-          v
- +---------------------- GitHub Actions ----------------------+
- | 1. Lint + unit tests + code security scan                  |
- | 2. Secret scan + config scan                               |
- | 3. Build Docker image -> scan image -> push to registry    |
- | 4. Deploy CANARY (10% of traffic)                          |
- | 5. Health check the canary                                 |
- |      pass -> promote to all pods                           |
- |      fail -> automatic rollback                            |
- +------------------------------------------------------------+
-          |
-          v
-   Kubernetes cluster  --->  Prometheus (metrics) --> Grafana dashboards + alerts
-          |
-          +-------------->  Promtail --> Loki (logs) --> Grafana
-```
-
-## Project layout
+## Flow
 
 ```
-app/                 The application and its unit tests
-Dockerfile           Builds the container image
-docker-compose.yml   Runs app + monitoring + logging on one machine
-k8s/                 Kubernetes manifests (deployments, service, autoscaler, policies)
-terraform/           Prepares the cluster and installs monitoring/logging
-ansible/             Installs the tools on a fresh server
-monitoring/          Prometheus, alert rules, Grafana dashboard, Promtail config
-scripts/             canary-check.sh and rollback.sh
-sample-data/         Real sample logs and metrics captured from the running app
-docs/                Architecture notes, security notes, test evidence checklist
+Developer -> GitHub -> Jenkins (lint, test, SonarQube, build, scan) -> Docker image (ghcr.io)
+                                         |
+                    Argo CD watches k8s/app in GitHub  ->  Kubernetes cluster
+                                                            |-- Prometheus -> Grafana (metrics, alerts)
+                                                            |-- Fluentd -> Elasticsearch -> Kibana (logs)
+                                                            `-- PostgreSQL + Persistent Volume
 ```
 
-## Run it yourself
+## Run it
 
-### Option A: Quickest (no Kubernetes), run on your laptop
-
-Needs: Docker.
+### 1. The application, with Docker (needs Docker Desktop)
 
 ```bash
 docker compose up -d --build
 ```
 
-Then open:
-- App: http://localhost:8080/health
-- Prometheus: http://localhost:9090
-- Grafana: http://localhost:3000 (user `admin`, password `admin`; dashboard "TaskTracker Overview")
+- App: http://localhost:8080 (register an account, then log in)
+- Prometheus: http://localhost:9090  Grafana: http://localhost:3000 (admin / admin)
 
-Try it:
-```bash
-curl -X POST localhost:8080/tasks -H 'Content-Type: application/json' -d '{"title":"hello"}'
-curl localhost:8080/tasks
-curl localhost:8080/crash        # makes an error so you can see the alert/dashboard react
-```
-
-Stop everything: `docker compose down`
-
-### Option B: Full platform on Kubernetes (minikube)
-
-Needs: Docker, minikube, kubectl, Terraform, Helm.
-(`ansible-playbook -i ansible/inventory.ini ansible/playbook.yml` installs them on Ubuntu.)
-
-```bash
-# 1. Start a local cluster
-minikube start --cpus=4 --memory=6g
-
-# 2. Create namespaces, quotas, Prometheus, Grafana and Loki
-cd terraform
-terraform init
-terraform apply -var="grafana_admin_password=choose-a-password"
-cd ..
-
-# 3. Put your GitHub username into the image name in both deployment files
-#    (replace YOUR_GITHUB_USERNAME in k8s/deployment.yaml and k8s/deployment-canary.yaml)
-
-# 4. Deploy the app
-kubectl apply -f k8s/
-
-# 5. Look at it
-kubectl -n tasktracker get pods
-kubectl -n tasktracker port-forward svc/tasktracker 8080:80
-kubectl -n monitoring port-forward svc/kube-prometheus-stack-grafana 3000:80
-```
-
-### Option C: Turn on the automated pipeline
-
-1. Push this repo to GitHub.
-2. In the repo go to **Settings > Environments**, create an environment named `production`
-   and add yourself as a required reviewer (this is the manual approval step).
-3. In **Settings > Secrets and variables > Actions**, add a secret called `KUBE_CONFIG`
-   containing your base64-encoded kubeconfig:
-   `base64 -w0 ~/.kube/config`
-   (The cluster must be reachable from the internet for GitHub-hosted runners. For a local
-   minikube, use a self-hosted runner instead and change `runs-on` in the deploy job.)
-4. Make a change, push to `main`, and watch the **Actions** tab.
-
-## Run the tests
+Run the tests without Docker:
 
 ```bash
 cd app
@@ -132,23 +57,89 @@ pip install -r requirements-dev.txt
 pytest -q
 ```
 
-## Demo: failure and recovery
+### 2. Jenkins and SonarQube
 
-1. Deploy a bad version (for example set `ENABLE_CRASH_ENDPOINT=true` and call `/crash`).
-2. The `HighErrorRate` alert fires and the Grafana error-rate panel rises.
-3. If the canary health check fails, the pipeline rolls back by itself.
-4. To roll back by hand: `bash scripts/rollback.sh`
+```bash
+cd jenkins
+docker compose up -d --build
+```
+
+- Jenkins: http://localhost:8081 (first password: `docker exec jenkins cat /var/jenkins_home/secrets/initialAdminPassword`)
+- SonarQube: http://localhost:9000 (admin / admin, it asks you to change the password)
+
+One-time setup in Jenkins:
+1. Install suggested plugins and create an admin user.
+2. In SonarQube create a token (My Account > Security). In Jenkins add it under Manage Jenkins >
+   Credentials as **Secret text** with ID `sonar-token`.
+3. New Item > Pipeline > "Pipeline script from SCM" > Git > your repo URL, branch `main`,
+   script path `Jenkinsfile`.
+4. Click **Build Now**. After that it polls GitHub every 2 minutes and builds after every push.
+
+Optional credentials (the pipeline only needs them if you tick the matching parameter):
+`ghcr-credentials` (Username with password, a GitHub token with package write) and `kubeconfig` (Secret file).
+
+### 3. Kubernetes (Docker Desktop with Kubernetes enabled)
+
+```bash
+cd terraform
+terraform init
+terraform apply -var "kube_context=docker-desktop" -var "grafana_admin_password=<choose one>"
+cd ..
+kubectl apply -f k8s/namespace.yaml
+kubectl apply -f k8s/app/
+kubectl apply -f k8s/logging/
+kubectl -n tasktracker get pods,pvc,pv
+```
+
+Use `-var "enable_gitops=false"` to skip Argo CD if the laptop is short of memory.
+
+Open the app: `kubectl -n tasktracker port-forward svc/tasktracker 8080:80`
+
+### 4. GitOps with Argo CD
+
+```bash
+kubectl apply -f argocd/application.yaml
+kubectl -n argocd port-forward svc/argocd-server 8443:443
+kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath="{.data.password}"
+```
+
+The last command prints the password in base64; decode it, then log in at https://localhost:8443
+as `admin`. When using GitOps, do not run `kubectl apply -f k8s/app/` yourself; Argo CD does it.
+
+### 5. Ansible (on a Linux or WSL machine)
+
+```bash
+cd ansible
+ansible-playbook site.yml                 # everything
+ansible-playbook playbooks/01-docker.yml  # or one at a time
+```
+
+## Demonstrations
+
+| What | Commands |
+|---|---|
+| Scaling | `kubectl -n tasktracker scale deployment/tasktracker --replicas=12` and `kubectl -n tasktracker get hpa` |
+| Rolling update | `kubectl -n tasktracker set image deployment/tasktracker app=ghcr.io/sankshtriya01/devops-capstone:<tag>` then `kubectl -n tasktracker rollout status deployment/tasktracker` |
+| Rollback | `kubectl -n tasktracker rollout undo deployment/tasktracker` |
+| Canary | `kubectl -n tasktracker get pods --show-labels` (9 stable + 1 canary) |
+| RBAC | `kubectl auth can-i get pods -n tasktracker --as=system:serviceaccount:tasktracker:viewer` (yes) and `... delete pods ...` (no) and `... get secrets ...` (no) |
+| Persistent data | Add a task, run `kubectl -n tasktracker delete pod -l app=postgres`, wait, reload: the task is still there |
+| Alert | `docker compose stop app`, wait 2 minutes, open http://localhost:9090/alerts |
+| Logs | `kubectl -n logging port-forward svc/kibana 5601:5601`, then create a data view `logstash-*` |
 
 ## Security measures
 
-- Container runs as a non-root user with a read-only filesystem and all Linux capabilities dropped.
-- Secrets are never stored in the repo (secret scanning in CI; `.gitignore` blocks `.env` and Terraform state).
-- Image is scanned for critical vulnerabilities and the pipeline stops if any are found.
-- Kubernetes namespace enforces the `restricted` pod security standard.
-- Network policy denies all traffic except to the app port.
-- Resource limits stop one pod from using the whole cluster.
+- Passwords are stored hashed; login cookies are HttpOnly and SameSite; forms carry a CSRF token.
+- Each user can only see their own tasks.
+- Container runs as a non-root user with a read-only filesystem and no Linux capabilities.
+- Secrets are in a Kubernetes Secret, not in code. The values in `k8s/app/secret.yaml` are lab
+  values; production would use Sealed Secrets or a cloud secret manager.
+- Jenkins credentials are stored in the Jenkins credential store, never in the `Jenkinsfile`.
+- SonarQube analyses the code and enforces a quality gate; Bandit, Gitleaks and Trivy scan code, secrets and images.
+- RBAC: the app has no API access, `viewer` is read-only, `ci-deployer` can only update deployments.
+- Network policy: the database accepts traffic only from the app pods.
 
 ## Sample data
 
-`sample-data/app-sample.log` holds real JSON log lines and `sample-data/metrics-sample.txt`
-holds real metrics captured from the running application.
+`sample-data/app-sample.log` holds real JSON log lines (including a failed and a successful login) and
+`sample-data/metrics-sample.txt` holds real metrics captured from the running application.

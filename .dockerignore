@@ -2,9 +2,14 @@
 .github
 **/__pycache__
 **/.pytest_cache
+.venv
 k8s
 terraform
 ansible
 monitoring
+jenkins
+argocd
 docs
+sample-data
+screenshots
 *.md

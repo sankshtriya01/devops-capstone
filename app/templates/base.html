@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}TaskTracker{% endblock %}</title>
+  <style>
+    :root { --bg:#f5f6f8; --card:#fff; --ink:#1f2933; --muted:#6b7785; --accent:#2563eb;
+            --danger:#c0392b; --line:#e3e7ec; }
+    * { box-sizing: border-box; }
+    body { margin:0; font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+           background:var(--bg); color:var(--ink); line-height:1.5; }
+    header { background:var(--card); border-bottom:1px solid var(--line); }
+    .bar { max-width:720px; margin:0 auto; padding:12px 16px; display:flex;
+           justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap; }
+    .brand { font-weight:700; font-size:1.1rem; }
+    main { max-width:720px; margin:24px auto; padding:0 16px; }
+    .card { background:var(--card); border:1px solid var(--line); border-radius:10px;
+            padding:20px; }
+    h1 { font-size:1.4rem; margin:0 0 16px; }
+    label { display:block; font-weight:600; margin:12px 0 4px; }
+    input[type=text], input[type=password] { width:100%; padding:10px 12px; font-size:1rem;
+            border:1px solid var(--line); border-radius:8px; }
+    button { font-size:1rem; padding:10px 16px; border:0; border-radius:8px; cursor:pointer;
+             background:var(--accent); color:#fff; }
+    button.ghost { background:transparent; color:var(--accent); border:1px solid var(--line); }
+    button.danger { background:transparent; color:var(--danger); border:1px solid var(--line); }
+    .row { display:flex; gap:8px; }
+    .row input { flex:1; }
+    ul { list-style:none; margin:16px 0 0; padding:0; }
+    li { display:flex; align-items:center; justify-content:space-between; gap:8px;
+         padding:10px 0; border-top:1px solid var(--line); flex-wrap:wrap; }
+    li.done .title { text-decoration:line-through; color:var(--muted); }
+    .title { flex:1; min-width:140px; word-break:break-word; }
+    .actions { display:flex; gap:6px; }
+    .actions button { padding:6px 10px; font-size:.9rem; }
+    .msg { padding:10px 12px; border-radius:8px; margin-bottom:12px; background:#eef4ff; }
+    .err { background:#fdecea; color:var(--danger); }
+    .muted { color:var(--muted); }
+    form.inline { display:inline; }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="bar">
+      <span class="brand">TaskTracker</span>
+      {% block nav %}{% endblock %}
+    </div>
+  </header>
+  <main>
+    {% for message in get_flashed_messages() %}
+      <div class="msg">{{ message }}</div>
+    {% endfor %}
+    {% block content %}{% endblock %}
+  </main>
+</body>
+</html>

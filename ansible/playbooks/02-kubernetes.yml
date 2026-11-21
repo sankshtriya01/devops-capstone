@@ -1,0 +1,40 @@
+# Installs the Kubernetes command-line tool, a local cluster (minikube) and Helm.
+- name: Install Kubernetes tooling
+  hosts: devops_servers
+  become: true
+  tasks:
+    - name: Install kubectl
+      ansible.builtin.get_url:
+        url: "https://dl.k8s.io/release/{{ kubectl_version }}/bin/linux/amd64/kubectl"
+        dest: /usr/local/bin/kubectl
+        mode: "0755"
+
+    - name: Install minikube
+      ansible.builtin.get_url:
+        url: "https://github.com/kubernetes/minikube/releases/download/{{ minikube_version }}/minikube-linux-amd64"
+        dest: /usr/local/bin/minikube
+        mode: "0755"
+
+    - name: Install Helm
+      ansible.builtin.shell: set -o pipefail && curl -fsSL https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
+      args:
+        executable: /bin/bash
+        creates: /usr/local/bin/helm
+
+- name: Start a local Kubernetes cluster
+  hosts: devops_servers
+  become: false
+  tasks:
+    - name: Start minikube (Docker driver)
+      ansible.builtin.command: minikube start --driver=docker --cpus=4 --memory=6g
+      register: minikube_start
+      changed_when: "'Done!' in minikube_start.stdout"
+
+    - name: Check the cluster is ready
+      ansible.builtin.command: kubectl get nodes
+      register: nodes
+      changed_when: false
+
+    - name: Show the nodes
+      ansible.builtin.debug:
+        msg: "{{ nodes.stdout_lines }}"

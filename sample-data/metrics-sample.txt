@@ -1,26 +1,40 @@
 # HELP http_requests_total Total HTTP requests
 # TYPE http_requests_total counter
+http_requests_total{method="GET",path="/api/tasks",status="200"} 1
+http_requests_total{method="GET",path="/api/tasks/<task_id>",status="404"} 1
 http_requests_total{method="GET",path="/crash",status="500"} 1
 http_requests_total{method="GET",path="/health",status="200"} 1
-http_requests_total{method="GET",path="/tasks",status="200"} 1
-http_requests_total{method="GET",path="/tasks/<task_id>",status="404"} 1
-http_requests_total{method="POST",path="/tasks",status="201"} 3
-http_requests_total{method="POST",path="/tasks",status="400"} 1
+http_requests_total{method="GET",path="/ready",status="200"} 1
+http_requests_total{method="POST",path="/api/login",status="200"} 1
+http_requests_total{method="POST",path="/api/login",status="401"} 1
+http_requests_total{method="POST",path="/api/register",status="201"} 1
+http_requests_total{method="POST",path="/api/tasks",status="201"} 3
+http_requests_total{method="POST",path="/api/tasks",status="400"} 1
+http_requests_total{method="POST",path="/api/tasks",status="401"} 1
 # HELP http_request_duration_seconds_sum Total time spent handling requests
 # TYPE http_request_duration_seconds_sum counter
-http_request_duration_seconds_sum{path="/crash"} 0.000133
-http_request_duration_seconds_sum{path="/health"} 0.000128
-http_request_duration_seconds_sum{path="/tasks"} 0.000870
-http_request_duration_seconds_sum{path="/tasks/<task_id>"} 0.000081
+http_request_duration_seconds_sum{path="/api/login"} 0.137569
+http_request_duration_seconds_sum{path="/api/register"} 0.083538
+http_request_duration_seconds_sum{path="/api/tasks"} 0.009965
+http_request_duration_seconds_sum{path="/api/tasks/<task_id>"} 0.000416
+http_request_duration_seconds_sum{path="/crash"} 0.000076
+http_request_duration_seconds_sum{path="/health"} 0.000107
+http_request_duration_seconds_sum{path="/ready"} 0.000077
 # HELP http_request_duration_seconds_count Number of timed requests
 # TYPE http_request_duration_seconds_count counter
+http_request_duration_seconds_count{path="/api/login"} 2
+http_request_duration_seconds_count{path="/api/register"} 1
+http_request_duration_seconds_count{path="/api/tasks"} 6
+http_request_duration_seconds_count{path="/api/tasks/<task_id>"} 1
 http_request_duration_seconds_count{path="/crash"} 1
 http_request_duration_seconds_count{path="/health"} 1
-http_request_duration_seconds_count{path="/tasks"} 5
-http_request_duration_seconds_count{path="/tasks/<task_id>"} 1
+http_request_duration_seconds_count{path="/ready"} 1
 # HELP tasks_total Tasks currently stored
 # TYPE tasks_total gauge
 tasks_total 3
+# HELP users_total Registered users
+# TYPE users_total gauge
+users_total 1
 # HELP app_info Application version
 # TYPE app_info gauge
 app_info{version="1.0.0"} 1

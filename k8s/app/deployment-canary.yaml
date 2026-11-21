@@ -1,0 +1,83 @@
+# CANARY version: a new release goes here first and gets about 10% of traffic
+# (1 canary pod out of 10 behind the same Service).
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: tasktracker-canary
+  namespace: tasktracker
+  labels:
+    app: tasktracker
+    track: canary
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: tasktracker
+      track: canary
+  template:
+    metadata:
+      labels:
+        app: tasktracker
+        track: canary
+    spec:
+      serviceAccountName: tasktracker-sa
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: app
+          image: ghcr.io/sankshtriya01/devops-capstone:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 8080
+          env:
+            - name: WEB_CONCURRENCY
+              value: "1"
+            - name: PORT
+              valueFrom:
+                configMapKeyRef:
+                  name: tasktracker-config
+                  key: PORT
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: tasktracker-secrets
+                  key: DATABASE_URL
+            - name: SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: tasktracker-secrets
+                  key: SECRET_KEY
+          resources:
+            requests:
+              cpu: 50m
+              memory: 96Mi
+            limits:
+              cpu: 250m
+              memory: 256Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: 8080
+            initialDelaySeconds: 3
+            periodSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 10
+            periodSeconds: 10
+      volumes:
+        - name: tmp
+          emptyDir: {}

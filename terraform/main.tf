@@ -1,5 +1,9 @@
-# Infrastructure as Code: prepares the Kubernetes cluster for the app.
-# Works with any cluster your kubeconfig points to (minikube, kind, EKS, GKE ...).
+# Infrastructure as Code: prepares a Kubernetes cluster for the application.
+# Works with any cluster your kubeconfig points to (Docker Desktop, minikube, EKS, GKE ...).
+#
+#   modules/namespaces : namespaces and the resource quota
+#   modules/monitoring : Prometheus + Grafana, Loki, metrics-server
+#   modules/gitops     : Argo CD
 terraform {
   required_version = ">= 1.6"
   required_providers {
@@ -26,83 +30,51 @@ provider "helm" {
   }
 }
 
-resource "kubernetes_namespace" "app" {
-  metadata {
-    name = "tasktracker"
-    labels = {
-      "pod-security.kubernetes.io/enforce" = "restricted"
-    }
-  }
+module "namespaces" {
+  source                = "./modules/namespaces"
+  app_namespace         = var.app_namespace
+  monitoring_namespace  = var.monitoring_namespace
 }
 
-resource "kubernetes_namespace" "monitoring" {
-  metadata {
-    name = "monitoring"
-  }
+module "monitoring" {
+  source                 = "./modules/monitoring"
+  namespace              = module.namespaces.monitoring_namespace
+  grafana_admin_password = var.grafana_admin_password
 }
 
-# Stops the app from using more than its fair share of the cluster.
-resource "kubernetes_resource_quota" "app" {
-  metadata {
-    name      = "app-quota"
-    namespace = kubernetes_namespace.app.metadata[0].name
-  }
-  spec {
-    hard = {
-      "requests.cpu"    = "2"
-      "requests.memory" = "2Gi"
-      "limits.cpu"      = "4"
-      "limits.memory"   = "4Gi"
-      "pods"            = "30"
-    }
-  }
+module "gitops" {
+  count  = var.enable_gitops ? 1 : 0
+  source = "./modules/gitops"
 }
 
-# Monitoring stack (Prometheus + Grafana + alert manager) installed automatically.
-resource "helm_release" "monitoring" {
-  name       = "kube-prometheus-stack"
-  repository = "https://prometheus-community.github.io/helm-charts"
-  chart      = "kube-prometheus-stack"
-  namespace  = kubernetes_namespace.monitoring.metadata[0].name
-  timeout    = 900
-
-  set {
-    name  = "grafana.adminPassword"
-    value = var.grafana_admin_password
-  }
+# The first version of this project kept everything in one file. These blocks tell
+# Terraform that the existing resources simply moved into modules, so nothing is rebuilt.
+moved {
+  from = kubernetes_namespace.app
+  to   = module.namespaces.kubernetes_namespace.app
 }
 
-# Logging stack (Loki + Promtail).
-resource "helm_release" "loki" {
-  name       = "loki"
-  repository = "https://grafana.github.io/helm-charts"
-  chart      = "loki-stack"
-  namespace  = kubernetes_namespace.monitoring.metadata[0].name
-  timeout    = 600
-
-  set {
-    name  = "promtail.enabled"
-    value = "true"
-  }
-
-  # Grafana allows only one default data source (Prometheus already is one).
-  set {
-    name  = "loki.isDefault"
-    value = "false"
-  }
+moved {
+  from = kubernetes_namespace.monitoring
+  to   = module.namespaces.kubernetes_namespace.monitoring
 }
 
-# Metrics server: lets the autoscaler see CPU use of the pods.
-# The insecure-tls flag is only needed on local clusters (Docker Desktop, minikube).
-resource "helm_release" "metrics_server" {
-  name       = "metrics-server"
-  repository = "https://kubernetes-sigs.github.io/metrics-server/"
-  chart      = "metrics-server"
-  namespace  = "kube-system"
-  timeout    = 300
+moved {
+  from = kubernetes_resource_quota.app
+  to   = module.namespaces.kubernetes_resource_quota.app
+}
 
-  set {
-    name  = "args[0]"
-    value = "--kubelet-insecure-tls"
-  }
+moved {
+  from = helm_release.monitoring
+  to   = module.monitoring.helm_release.monitoring
+}
+
+moved {
+  from = helm_release.loki
+  to   = module.monitoring.helm_release.loki
+}
+
+moved {
+  from = helm_release.metrics_server
+  to   = module.monitoring.helm_release.metrics_server
 }

@@ -1,0 +1,29 @@
+# GitOps: Argo CD watches the k8s/app folder in GitHub and keeps the cluster identical to it.
+# Change a file in Git -> Argo CD applies it. Change the cluster by hand -> Argo CD puts it back.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: tasktracker
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/sankshtriya01/devops-capstone.git
+    targetRevision: main
+    path: k8s/app
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: tasktracker
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=false
+  ignoreDifferences:
+    # The autoscaler changes the replica count, so Argo CD must not fight it.
+    - group: apps
+      kind: Deployment
+      name: tasktracker
+      jsonPointers:
+        - /spec/replicas

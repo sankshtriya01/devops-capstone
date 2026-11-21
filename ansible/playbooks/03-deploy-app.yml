@@ -1,0 +1,32 @@
+# Deploys the application to Kubernetes from the manifests in this repository.
+- name: Deploy TaskTracker
+  hosts: devops_servers
+  tasks:
+    - name: Create the application namespace
+      ansible.builtin.command: kubectl apply -f {{ repo_dir }}/k8s/namespace.yaml
+      register: ns
+      changed_when: "'created' in ns.stdout or 'configured' in ns.stdout"
+
+    - name: Apply database, secret, config, deployments and policies
+      ansible.builtin.command: kubectl apply -f {{ repo_dir }}/k8s/app/
+      register: apply
+      changed_when: "'created' in apply.stdout or 'configured' in apply.stdout"
+
+    - name: Wait for the database
+      ansible.builtin.command: >
+        kubectl -n {{ app_namespace }} rollout status deployment/postgres --timeout=180s
+      changed_when: false
+
+    - name: Wait for the application
+      ansible.builtin.command: >
+        kubectl -n {{ app_namespace }} rollout status deployment/tasktracker --timeout=240s
+      changed_when: false
+
+    - name: List the running pods
+      ansible.builtin.command: kubectl -n {{ app_namespace }} get pods
+      register: pods
+      changed_when: false
+
+    - name: Show the pods
+      ansible.builtin.debug:
+        msg: "{{ pods.stdout_lines }}"

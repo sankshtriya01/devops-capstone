@@ -1,0 +1,8 @@
+# Variables shared by all playbooks.
+kubectl_version: "v1.31.0"
+minikube_version: "v1.34.0"
+app_user: tasktracker
+app_config_dir: /etc/tasktracker
+app_namespace: tasktracker
+# Folder that holds the k8s manifests on the target machine (a copy of this repo)
+repo_dir: "{{ playbook_dir }}/../.."

@@ -39,7 +39,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: Scan Kubernetes + Terraform files
-        uses: aquasecurity/trivy-action@0.28.0
+        uses: aquasecurity/trivy-action@0.35.0
         with:
           scan-type: config
           scan-ref: .
@@ -75,7 +75,7 @@ jobs:
           tags: ${{ steps.meta.outputs.image }}
           build-args: APP_VERSION=${{ github.sha }}
       - name: Scan image for vulnerabilities
-        uses: aquasecurity/trivy-action@0.28.0
+        uses: aquasecurity/trivy-action@0.35.0
         with:
           image-ref: ${{ steps.meta.outputs.image }}
           severity: CRITICAL

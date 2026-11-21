@@ -16,6 +16,11 @@ RUN curl -fsSL -o /tmp/sonar.zip \
 RUN curl -fsSL -o /usr/local/bin/kubectl https://dl.k8s.io/release/v1.31.0/bin/linux/amd64/kubectl \
  && chmod +x /usr/local/bin/kubectl
 
-RUN jenkins-plugin-cli --plugins workflow-aggregator git credentials-binding junit timestamps \
-      pipeline-stage-view
+# Docker command-line client (the apt package on this Jenkins image does not include it).
+RUN curl -fsSL https://download.docker.com/linux/static/stable/x86_64/docker-27.3.1.tgz \
+      | tar -xz -C /tmp \
+ && mv /tmp/docker/docker /usr/local/bin/docker \
+ && rm -rf /tmp/docker
+
+# Plugins are installed from the Jenkins web page ("Install suggested plugins").
 # Runs as root so it can use the Docker socket (lab setup only, not for production).

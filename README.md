@@ -1,4 +1,4 @@
-# DevOps Capstone: End-to-End DevOps Pipeline for a Cloud-Native Application
+﻿# DevOps Capstone - Version A
 
 Course: DevOps & Automation Lab (ENSP461), B.Tech CSE Semester VII.
 
